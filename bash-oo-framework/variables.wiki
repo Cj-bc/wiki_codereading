@@ -1,0 +1,9 @@
+
+| 変数                         | 説明                                          | 定義                                                       | global   |
+| :--------------------------: | :-------------------------------------------: | :--------------------------------------------------------: | :------: |
+| :__INTERNAL_LOGGING__:       |                                               |                                                            |          |
+| :__oo__importedFiles:        |                                               |                                                            |          |
+| :__oo__fdPathL               | ファイルディスクリプタのパス。`/dev/fd`など   | `declare -g __oo__fdPath=$(dirname <(echo))`               | o        |
+| :__oo__fdLengthL             | ファイルディスクリプタの文字列の長さ          | `declare -gi __oo__fdLength=$(( ${#__oo__fdPath} + 1 ))`   | o        |
+| :__oo__allowFileReloading:   |                                               |                                                            |          |
+| :__oo__bootstrapped:         | 初期化されているかを判別するフラグ？          |                                                            | o        |

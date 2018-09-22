@@ -1,0 +1,223 @@
+= Contents =
+    - [[#System::SourceHTTP()|System::SourceHTTP()]]
+    - [[#System::SourcePath()|System::SourcePath()]]
+    - [[#System::ImpotOne()|System::ImpotOne()]]
+    - [[#File::GetAbsolutePath()|File::GetAbsolutePath()]]
+    - [[#System::WrapSource()|System::WrapSource()]]
+    - [[#System::SourceFile()|System::SourceFile()]]
+    - [[#:System::Bootstrap():|:System::Bootstrap():]]
+  - [[#codes|codes]]
+
+
+
+== System::SourceHTTP() ==
+
+```bash
+System::SourceHTTP() {
+  local URL="$1"
+  local -i RETRIES=3
+  shift
+
+  if hash curl 2>/dev/null
+  then
+    builtin source <(curl --fail -sL --retry $RETRIES "${URL}" || { [[ "$URL" != *'.sh' && "$URL" != *'.bash' ]] && curl --fail -sL --retry $RETRIES "${URL}.sh"; } || echo "e='Cannot import $URL' throw") "$@"
+  else
+    builtin source <(wget -t $RETRIES -O - -o /dev/null "${URL}" || { [[ "$URL" != *'.sh' && "$URL" != *'.bash' ]] && wget -t $RETRIES -O - -o /dev/null "${URL}.sh"; } || echo "e='Cannot import $URL' throw") "$@"
+  fi
+  __oo__importedFiles+=( "$URL" )
+}
+```
+
+
+== System::SourcePath() ==
+
+```bash
+System::SourcePath() {
+  local libPath="$1"
+  shift
+  # echo trying $libPath
+  if [[ -d "$libPath" ]]
+  then
+    local file
+    for file in "$libPath"/*.sh
+    do
+      System::SourceFile "$file" "$@"
+    done
+  else
+    System::SourceFile "$libPath" "$@" || System::SourceFile "${libPath}.sh" "$@"
+  fi
+}
+```
+
+
+`$1`として渡されたのがディレクトリであればそれを
+
+
+== System::ImpotOne() ==
+
+```bash
+System::ImportOne() {
+  local libPath="$1"
+  local __oo__importParent="${__oo__importParent-}"
+  local requestedPath="$libPath"
+  shift
+
+  if [[ "$requestedPath" == 'github:'* ]]
+  then
+    requestedPath="https://raw.githubusercontent.com/${requestedPath:7}"
+  elif [[ "$requestedPath" == './'* ]]
+  then
+    requestedPath="${requestedPath:2}"
+  elif [[ "$requestedPath" == "$__oo__fdPath"* ]] # starts with /dev/fd
+  then
+    requestedPath="${requestedPath:$__oo__fdLength}"
+  fi
+
+  # [[ "$__oo__importParent" == 'http://'* || "$__oo__importParent" == 'https://'* ]] &&
+  if [[ "$requestedPath" != 'http://'* && "$requestedPath" != 'https://'* ]]
+  then
+    requestedPath="${__oo__importParent}/${requestedPath}"
+  fi
+
+  if [[ "$requestedPath" == 'http://'* || "$requestedPath" == 'https://'* ]]
+  then
+    __oo__importParent=$(dirname "$requestedPath") System::SourceHTTP "$requestedPath"
+    return
+  fi
+
+  # try relative to parent script
+  # try with parent
+  # try without parent
+  # try global library
+  # try local library
+  {
+    local localPath="$( cd "${BASH_SOURCE[1]%/*}" && pwd )"
+    localPath="${localPath}/${libPath}"
+    System::SourcePath "${localPath}" "$@"
+  } || \
+  System::SourcePath "${requestedPath}" "$@" || \
+  System::SourcePath "${libPath}" "$@" || \
+  System::SourcePath "${__oo__libPath}/${libPath}" "$@" || \
+  System::SourcePath "${__oo__path}/${libPath}" "$@" || e="Cannot import $libPath" throw
+}
+```
+
+
+System::Import()
+
+```bash
+System::Import() {
+  local libPath
+  for libPath in "$@"
+  do
+    System::ImportOne "$libPath"
+  done
+}
+```
+
+渡された引数を全て`System::ImportOne`に渡す
+
+
+== File::GetAbsolutePath() ==
+
+```bash
+File::GetAbsolutePath() {
+# http://stackoverflow.com/questions/3915040/bash-fish-command-to-print-absolute-path-to-a-file
+# $1 : relative filename
+local file="$1"
+if [[ "$file" == "/"* ]]
+then
+  echo "$file"
+else
+  echo "$(cd "$(dirname "$file")" && pwd)/$(basename "$file")"
+fi
+}
+```
+
+
+== System::WrapSource() ==
+
+```bash
+System::WrapSource() {
+  local libPath="$1"
+  shift
+
+  builtin source "$libPath" "$@" || throw "Unable to load $libPath"
+}
+```
+
+
+== System::SourceFile() ==
+
+```bash
+System::SourceFile() {
+  local libPath="$1"
+  shift
+
+  # DEBUG subject=level3 Log "Trying to load from: ${libPath}"
+  [[ ! -f "$libPath" ]] && return 1 # && e="Cannot import $libPath" throw
+
+  libPath="$(File::GetAbsolutePath "$libPath")"
+
+  # echo "importing $libPath"
+
+  # [ -e "$libPath" ] && echo "Trying to load from: ${libPath}"
+  if [[ -f "$libPath" ]]
+  then
+    ## if already imported let's return
+    # if declare -f "Array::Contains" &> /dev/null &&
+    if [[ "${__oo__allowFileReloading-}" != true ]] && [[ ! -z "${__oo__importedFiles[*]}" ]] && Array::Contains "$libPath" "${__oo__importedFiles[@]}"
+    then
+      # DEBUG subject=level3 Log "File previously imported: ${libPath}"
+      return 0
+    fi
+
+    # DEBUG subject=level2 Log "Importing: $libPath"
+
+    __oo__importedFiles+=( "$libPath" )
+    __oo__importParent=$(dirname "$libPath") System::WrapSource "$libPath" "$@"
+    # eval "$(<"$libPath")"
+
+  else
+    :
+    # DEBUG subject=level2 Log "File doesn't exist when importing: $libPath"
+  fi
+}
+```
+
+
+== System::Bootstrap() ==
+
+```bash
+System::Bootstrap() {
+## note: aliases are visible inside functions only if
+## they were initialized AFTER they were created
+## this is the reason why we have to load files in a specific order
+if ! System::Import Array/Contains
+then
+  cat <<< "FATAL ERROR: Unable to bootstrap (missing lib directory?)" 1>&2
+  exit 1
+fi
+}
+```
+
+`Array/Contains`がインポートできなければ、失敗したエラーログを吐いて終了する。
+恐らくこれはテストのためであり、どのライブラリでも基本は問題ないのだと思う。
+
+
+= codes =
+
+1. [[variables#__INTERNAL_LOGGING__]]`の設定によって`DEBUG`の設定を変更
+2. [[variables#__oo__fdPath]]/[[variables#__oo_fdLength]]を設定
+3. `PS4`を設定
+4. `pipefail`オプションを有効化([[wiki0:tech/bash/options#pipefail]])
+5. `expand_aliases`を有効化([[wiki0:tech/bash/options#expand_aliases]])
+6. `__oo__libPath`を`oo-bootstrap.sh`のあるディレクトリのパスに設定
+7. `__oo__path`を`__oo_libPath`の一段上に設定
+8. `__importedFiles`を配列として定義
+9. `namespace`と`throw`が読み込まれなかった場合のために、仮定義する
+10. [[#System::Bootstrap()]]を実行
+11. `import`をエイリアスに変える
+12. `source`をエイリアスに変える
+13. `.`をエイリアスに変える
+14. `__oo__bootstrapped`を`true`に
