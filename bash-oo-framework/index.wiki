@@ -4,3 +4,4 @@
 
 == files ==
   * [[oo-bootstrap]]
+  * [[TypePrimitives/array]]
