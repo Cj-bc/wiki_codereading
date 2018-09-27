@@ -1,0 +1,85 @@
+= Contents =
+    - [[#Command::GetType()|Command::GetType()]]
+    - [[#Command::Exists()|Command::Exists()]]
+    - [[#Alias::Exists()|Alias::Exists()]]
+    - [[#Function::Exists()|Function::Exists()]]
+    - [[#Function::GetAllStartingWith()|Function::GetAllStartingWith()]]
+    - [[#Function::InjectCode()|Function::InjectCode()]]
+
+
+== Command::GetType() ==
+
+```bash
+Command::GetType() {
+  local name="$1"
+  local typeMatch=$(type -t "$name" 2> /dev/null || true)
+  echo "$typeMatch"
+}
+```
+
+コマンドのタイプを返す。
+値: `alias`/`builtin`/`file`/`function`
+
+== Command::Exists() ==
+
+```bash
+Command::Exists(){
+  local name="$1"
+  local typeMatch=$(Command::GetType "$name")
+  [[ "$typeMatch" == "alias" || "$typeMatch" == "function" || "$typeMatch" == "builtin" ]]
+}
+```
+
+コマンドが存在しているか確認する。
+存在していれば`true`、しなければ`false`を返す。
+
+== Alias::Exists() ==
+
+```bash
+Alias::Exists(){
+  local name="$1"
+  local typeMatch=$(Command::GetType "$name")
+  [[ "$typeMatch" == "alias" ]]
+}
+```
+
+与えられたコマンドがaliasであれば`true`、違ければ`false`を返す。
+
+== Function::Exists() ==
+
+```bash
+Function::Exists(){
+  local name="$1"
+  declare -f "$name" &> /dev/null
+}
+```
+
+与えられたコマンドが存在すれば`true`、なければ`false`を返す
+
+== Function::GetAllStartingWith() ==
+
+```bash
+Function::GetAllStartingWith() {
+  local startsWith="$1"
+  compgen -A 'function' "$startsWith" || true
+}
+```
+
+与えられた名前で始まる関数を全て返す。
+
+== Function::InjectCode() ==
+
+```bash
+Function::InjectCode() {
+  local functionName="$1"
+  local injectBefore="$2"
+  local injectAfter="$3"
+  local body=$(declare -f "$functionName")
+  body="${body#*{}" # trim start
+  body="${body%\}}" # trim end
+  local enter=$'\n'
+  eval "${functionName}() { ${enter}${injectBefore}${body}${injectAfter}${enter} }"
+}
+```
+
+関数の定義の始めと終わりにコードを増やして再定義する。

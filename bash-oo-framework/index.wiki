@@ -7,3 +7,4 @@
   * [[TypePrimitives/string]]
   * [[TypePrimitives/array]]
   * [[util/variable]]
+  * [[util/command]]
