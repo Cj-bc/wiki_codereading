@@ -1,9 +1,40 @@
+= global =
 
-| 変数                         | 説明                                          | 定義                                                       | global   |
-| :--------------------------: | :-------------------------------------------: | :--------------------------------------------------------: | :------: |
-| :__INTERNAL_LOGGING__:       |                                               |                                                            |          |
-| :__oo__importedFiles:        |                                               |                                                            |          |
-| :__oo__fdPathL               | ファイルディスクリプタのパス。`/dev/fd`など   | `declare -g __oo__fdPath=$(dirname <(echo))`               | o        |
-| :__oo__fdLengthL             | ファイルディスクリプタの文字列の長さ          | `declare -gi __oo__fdLength=$(( ${#__oo__fdPath} + 1 ))`   | o        |
-| :__oo__allowFileReloading:   |                                               |                                                            |          |
-| :__oo__bootstrapped:         | 初期化されているかを判別するフラグ？          |                                                            | o        |
+| 変数                         | 説明                                          | 定義                                                       |
+| :--------------------------: | :-------------------------------------------: | :--------------------------------------------------------: |
+| :__INTERNAL_LOGGING__:       |                                               |                                                            |
+| :__oo__importedFiles:        |                                               |                                                            |
+| :__oo__fdPathL               | ファイルディスクリプタのパス。`/dev/fd`など   | `declare -g __oo__fdPath=$(dirname <(echo))`               |
+| :__oo__fdLengthL             | ファイルディスクリプタの文字列の長さ          | `declare -gi __oo__fdLength=$(( ${#__oo__fdPath} + 1 ))`   |
+| :__oo__allowFileReloading:   |                                               |                                                            |
+| :__oo__bootstrapped:         | 初期化されているかを判別するフラグ？          |                                                            |
+| :__oo__path:                 | lib/oo-framework.shの`lib`部分                |                                                            |
+
+= oo-bootstrap.sh =
+
+== [[oo-bootstrap#System::SourceHTTP()]] ==
+
+| 変数 | 説明 | 定義 |
+== [[oo-bootstrap#System::SourcePath()]] ==
+
+| 変数 | 説明 | 定義 |
+== [[oo-bootstrap#System::ImpotOne()]] ==
+
+| 変数                 | 説明                                      | 定義               |
+| :libPath:            | 第一引数そのもの                          | local libPath="$1" |
+| :requestedPath:      |                                           |                    |
+| :__oo__importParent: | 設定されていないため、使われていない...?? |                    |
+
+
+== [[oo-bootstrap#System::Import()]] ==
+
+| 変数 | 説明 | 定義 |
+== [[oo-bootstrap#File::GetAbsolutePath()]] ==
+
+| 変数 | 説明 | 定義 |
+== [[oo-bootstrap#System::WrapSource()]] ==
+
+| 変数 | 説明 | 定義 |
+== [[oo-bootstrap#System::SourceFile()]] ==
+
+| 変数 | 説明 | 定義 |
