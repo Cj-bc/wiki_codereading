@@ -6,3 +6,4 @@
   * [[oo-bootstrap]]
   * [[TypePrimitives/string]]
   * [[TypePrimitives/array]]
+  * [[util/variable]]
