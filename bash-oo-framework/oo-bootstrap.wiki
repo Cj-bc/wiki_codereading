@@ -102,8 +102,16 @@ System::ImportOne() {
 }
 ```
 
+1. `requestedPath`を設定する。与えられた名前が
+  * `github:`で始まるのなら、`https://raw.githubusercontent.com`に置き換える
+  * `./`で始まるのなら、ファイル名のみ切り取る
+  * ファイルディスクリプタではじまるなら、その番号だけ切り取る
+3. `requestedPath`が`http://`or`https://`で始まらないのなら`__oo__importParent`を`requestedPath`の先頭に追加する。
+4. `requestedPath`が`http://`or`https://`で始まるのなら、`__oo__importParent`を`repuestedPath`のファイルのあるパスにして`System::SourceHTTP`に渡して終了する
+5. 
 
-System::Import()
+
+== System::Import() ==
 
 ```bash
 System::Import() {
@@ -157,7 +165,6 @@ System::SourceFile() {
   # DEBUG subject=level3 Log "Trying to load from: ${libPath}"
   [[ ! -f "$libPath" ]] && return 1 # && e="Cannot import $libPath" throw
 
-  libPath="$(File::GetAbsolutePath "$libPath")"
 
   # echo "importing $libPath"
 

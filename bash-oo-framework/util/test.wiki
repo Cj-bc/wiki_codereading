@@ -1,0 +1,167 @@
+= dependencies =
+
+```bash
+import util/class util/tryCatch UI/Cursor
+```
+
+= 基本的な使い方 =
+
+まず何より、このテストフレームワークは *BDDである*
+`it`や`describe`などのワードについては、 *BDD* で調べると色々出てくるので参照してほしい。
+
+* `Test`オブジェクトを生成してテストを行う。
+* `it`から`expect[Pass|OutputPass|Fail]`までが一つのテスト
+* `Test Start <string verb> <string description>`の形を取っていれば`it`出なくても良い。
+* 失敗すれば捕捉される模様。
+* 詳しくはTOCから参照
+
+
+README内の例文は次の通り
+
+== code block ==
+```
+it 'should make a number and change its value'
+try
+    integer aNumber=10
+    aNumber = 12
+    test (($aNumber == 12))
+expectPass
+
+it "should make basic operations on two arrays"
+try
+    array Letters
+    array Letters2
+
+    $var:Letters push "Hello Bobby"
+    $var:Letters push "Hello Maria"
+
+    $var:Letters contains "Hello Bobby"
+    $var:Letters contains "Hello Maria"
+
+    $var:Letters2 push "Hello Midori,
+                        Best regards!"
+
+    $var:Letters2 concatAdd $var:Letters
+
+    $var:Letters2 contains "Hello Bobby"
+expectPass
+```
+
+
+= 利用可能なコマンド =
+
+| コマンド         | 説明                                         | 引数                          |
+| :-:              | :-:                                          | :-:                           |
+| describe         | BDD(behavior Driven Development)のキーワード | <string group_name>           |
+| summary          | BDDのキーワード                              |                               |
+| caught           | 捕捉された例外を出力する                     |                               |
+| it               | テストブロックの開始。 BDDのキーワード       | <string describe_of_the_test> |
+| expectPass       | 戻り値0/例外捕捉しないのを期待               |                               |
+| expectOutputPass |                                              |                               |
+| expectFail       |                                              |                               |
+
+
+
+
+
+
+= class:Test =
+
+```
+class:Test() {
+
+  == properties ==
+  private UI.Cursor onStartCursor
+  private string groupName
+  public string errors
+  # public boolean errors = false
+
+  == Test.Start ==
+  Test.Start() {
+    [string] verb
+    [string] description
+
+    this onStartCursor capture
+    echo "$(UI.Color.Yellow)$(UI.Powerline.PointingArrow) $(UI.Color.Yellow)[$(UI.Color.LightGray)$(UI.Color.Bold)TEST$(UI.Color.NoBold)$(UI.Color.Yellow)] $(UI.Color.White)${verb} ${description}$(UI.Color.Default)"
+    @return
+  }
+  # テスト開始のメッセージを流す
+  # カーソルのスタート位置を捕捉する
+
+  == Test.OK ==
+  Test.OK() {
+    [string] printInPlace=true
+
+    [[ $printInPlace == true ]] && this onStartCursor restore
+
+    echo "$(UI.Color.Green)$(UI.Powerline.OK) $(UI.Color.Yellow)[ $(UI.Color.Green)$(UI.Color.Bold)OK$(UI.Color.NoBold) $(UI.Color.Yellow)]$(UI.Color.Default)"
+    @return
+  }
+  # テスト成功のメッセージを流す
+
+  == Test.EchoedOK ==
+  Test.EchoedOK() {
+    this OK false
+  }
+
+  == Test.Fail ==
+  Test.Fail() {
+    [string] line
+    [string] error
+    [string] source
+    echo "$(UI.Color.Red)$(UI.Powerline.Fail) $(UI.Color.Yellow)[$(UI.Color.Red)$(UI.Color.Bold)FAIL$(UI.Color.NoBold)$(UI.Color.Yellow)]$(UI.Color.Default) in $(UI.Color.Yellow)${source}$(UI.Color.Default):$(UI.Color.Blue)${line}$(UI.Color.Default) $(UI.Powerline.RefersTo) $(UI.Color.Red)${error}$(UI.Color.Default)"
+    @return
+  }
+  # テスト失敗のメッセージを流す
+
+  == Test.DisplaySummary ==
+  Test.DisplaySummary() {
+    if [[ $(this errors) == true ]]
+    # if this errors
+    then
+      echo "$(UI.Powerline.ArrowLeft) $(UI.Color.Magenta)Completed [$(UI.Color.White)$(this groupName)$(UI.Color.Magenta)]: $(UI.Color.Default)$(UI.Color.Red)There were errors $(UI.Color.Default)$(UI.Powerline.Lightning)"
+      this errors = false
+    else
+      echo "$(UI.Powerline.ArrowLeft) $(UI.Color.Magenta)Completed [$(UI.Color.White)$(this groupName)$(UI.Color.Magenta)]: $(UI.Color.Default)$(UI.Color.Yellow)Test group completed succesfully $(UI.Color.Default)$(UI.Powerline.ThumbsUp)"
+    fi
+    @return
+  }
+
+  == Test.NewGroup ==
+  Test.NewGroup() {
+    [string] groupName
+
+    echo "$(UI.Powerline.ArrowRight)" $(UI.Color.Magenta)Testing [$(UI.Color.White)${groupName}$(UI.Color.Magenta)]: $(UI.Color.Default)
+
+    this groupName = "$groupName"
+
+    @return
+  }
+}
+
+
+Type::InitializeStatic Test
+```
+
+### TODO: special case for static classes
+### for storage use a generated variable name (hash of class name?)
+### for execution use class' name, e.g. Test Start
+
+= aliases =
+
+```
+# 新しいテストグループを作成する
+alias describe='Test NewGroup'
+# そのテストグループのステータスを表示する（一つでもテストが落ちているとその旨が書かれる。
+alias summary='Test DisplaySummary'
+# 例外を出力する。
+alias caught="echo \"CAUGHT: $(UI.Color.Red)\$__BACKTRACE_COMMAND__$(UI.Color.Default) in \$__BACKTRACE_SOURCE__:\$__BACKTRACE_LINE__\""
+# テストを生成する。テスト開始のメッセージを流す。
+alias it="Test Start it"
+# 例外が発生しなければOK、発生した場合はテストは失敗しその例外が出力される。
+alias expectPass="Test OK; catch { Test errors = true; Test Fail \"\${__EXCEPTION__[@]}\"; }"
+# 例外が発生しなければOK、発生した場合はその旨を出力する（例外は出力されない）。
+alias expectOutputPass="Test EchoedOK; catch { Test errors = true; Test Fail; }"
+# 例外が発生すればOK、
+alias expectFail='catch { caught; Test EchoedOK; }; test $? -eq 1 && Test errors = false; '
+```
