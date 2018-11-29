@@ -1,7 +1,17 @@
+# pre
+
+```bash
 namespace util/type
 import util/type String/SanitizeForVariable
 # ------------------------ #
+```
 
+
+# Type::DefineProperty
+
+## codes
+
+```bash
 Type::DefineProperty() {
   local visibility="$1"
   local class="$2"
@@ -20,21 +30,39 @@ Type::DefineProperty() {
     eval "__${class}_property_defaults+=( \"\$defaultValue\" )"
   # fi
 }
+```
 
+# private
+
+## codes
+
+```bash
 private() {
   # ${FUNCNAME[1]} contains the name of the class
   local class=${FUNCNAME[1]#*:}
 
   Type::DefineProperty private $class "$@"
 }
+```
 
+# public()
+
+## codes
+
+```bash
 public() {
   # ${FUNCNAME[1]} contains the name of the class
   local class=${FUNCNAME[1]#*:}
 
   Type::DefineProperty public $class "$@"
 }
+```
 
+# Type::Initialize()
+
+## codes
+
+```bash
 Type::Initialize() {
   local name="$1"
   local style="${2:-default}"
@@ -58,13 +86,25 @@ Type::Initialize() {
     ;;
   esac
 }
+```
 
+# Type::InitializeStatic()
+
+## codes
+
+```bash
 Type::InitializeStatic() {
   local name="$1"
 
   Type::Initialize "$name" static
 }
+```
 
+# Type::Construct()
+
+## codes
+
+```bash
 Type::Construct() {
   local type="$1"
   local typeSanitized=$(String::SanitizeForVariableName $type)
@@ -142,5 +182,12 @@ Type::Construct() {
     done
   fi
 }
+```
 
+# new
+
+## code
+
+```bash
 alias new='Type::Construct'
+```

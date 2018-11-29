@@ -6,6 +6,19 @@ import util/namedParameters util/pipe util/variable util/command
 
 == variables ==
 
+| 変数名                                     | scope | 説明 | 定義 |
+| :-:                                        | :-:   | :-:  | :-:  |
+| __primitive_extension_declaration          | g     |      |      |
+| __primitive_extension_fingerprint__boolean | g     |      |      |
+| __return_separator                         | g     |      |      |
+| __oo__type_handler_functions               | g     |      |      |
+| __oo__variableMethodPrefix                 | g     |      |      |
+| __typeCreate_normalCodeStarted             |       |      |      |
+| __typeCreate_varName                       |       |      |      |
+| __typeCreate_varValue                      |       |      |      |
+| __typeCreate_varType                       |       |      |      |
+| __typeCreate_arrLength                     |       |      |      |
+
 ```bash
 declare -g __primitive_extension_declaration=2D6A822E
 declare -g __primitive_extension_fingerprint__boolean=${__primitive_extension_declaration}36884C70843578D37E6773C4
@@ -13,6 +26,15 @@ declare -g __return_separator=52A586A48E074BB6812DCFDC790841F5
 declare -g __oo__type_handler_functions=()
 declare -g __oo__variableMethodPrefix="$var:"
 ```
+
+```bash
+    __typeCreate_normalCodeStarted=0
+    __typeCreate_varName="$varName"
+    __typeCreate_varValue="$varValue"
+    __typeCreate_varType="$__capture_type"
+    __typeCreate_arrLength="$__capture_arrLength"
+```
+
 
 == Type::GetTypeOfVariable() ==
 
@@ -39,6 +61,7 @@ declare -g __oo__variableMethodPrefix="$var:"
 
         local objectTypeIndirect="$variableName[__object_type]"
         # ${!<変数名>}で、<変数名>に格納されている文字列を変数名として再評価する
+        # つまりこの場合、`$objectTypeIndirect` の値の文字列の変数が存在するかを調べている
         if [[ "$primitiveType" =~ [A] && ! -z "${!objectTypeIndirect}" ]]
         then
           DEBUG Log "typeof $variableName: Object Type $variableName[__object_type] = ${!objectTypeIndirect}"
@@ -72,6 +95,10 @@ declare -g __oo__variableMethodPrefix="$var:"
 
 === comments ===
 1. 変数が存在するか確かめる
+2. 変数の型がプリミティブ型(デフォルトの型で、他の型を内包しないもの)かその他の型かを判別する
+3. プリミティブ型なら、変数定義のフラグからプリミティブ型を判別する
+4. その場合、拡張プリミティブ型の判定をする
+5. その他の型ならそのまま型名を設定する
 
 
 == Type::IsPrimitive() ==
@@ -195,6 +222,8 @@ Type::RunFunctionGarbageCollector() {
 
 == Type::InjectThisResolutionIfNeeded() ==
 
+=== code ===
+
 ```bash
 Type::InjectThisResolutionIfNeeded() {
   local methodName="$1"
@@ -221,6 +250,8 @@ Type::InjectThisResolutionIfNeeded() {
   fi
 }
 ```
+
+=== comment ===
 
 メゾットが存在しているかを調べ、存在していたらコードを挿入する
 
@@ -252,6 +283,8 @@ Type::InitializePrimitive() {
 
 == Type::TrapAndCreate() ==
 
+=== code ===
+
 ```bash
 Type::TrapAndCreate() {
   # USE DEFAULT IFS IN CASE IT WAS CHANGED
@@ -278,9 +311,11 @@ Type::TrapAndCreate() {
     return 0
   fi
 
+  # 引数のみ取り出し
   local varDeclaration="${commandWithArgs[*]:1}"
   if [[ $varDeclaration == '-'* ]]
   then
+    # 変数名以降のみ引き出し
     varDeclaration="${commandWithArgs[*]:2}"
   fi
   local varName="${varDeclaration%%=*}"
@@ -305,6 +340,7 @@ Type::TrapAndCreate() {
 
     DEBUG Log "creating: $__typeCreate_varName ($__typeCreate_varType) = $__typeCreate_varValue"
 
+    # 初期化式がないのなら初期化、あればその値に設定する
     if [[ -z "$__typeCreate_varValue" ]]
     then
       case "$__typeCreate_varType" in
@@ -358,6 +394,7 @@ Type::TrapAndCreate() {
     unset __typeCreate_varValue
   fi
 
+  # TODO: declareでない場合はどのような時？
   if [[ "$command" != "declare" || "$__typeCreate_next" != "true" ]]
   then
     __typeCreate_normalCodeStarted+=1
@@ -383,6 +420,8 @@ Type::TrapAndCreate() {
 }
 ```
 
+=== comments ===
+
 
 == Type::CaptureParams() ==
 
@@ -399,9 +438,34 @@ Type::CaptureParams() {
 
 == Type::TrapAssign ==
 
+=== codes ===
+
 ```bash
-alias Type::TrapAssign='Type::CaptureParams; declare -i __typeCreate_normalCodeStarted=0; trap "declare -i __typeCreate_paramNo; Type::TrapAndCreate \"\$BASH_COMMAND\" \"\$@\"; [[ \$__typeCreate_normalCodeStarted -ge 2 ]] && trap - DEBUG && unset __typeCreate_varType __typeCreate_varName __typeCreate_varValue __typeCreate_paramNo" DEBUG; true; true; '
+# NOTE: true; true; at the end is required to workaround an edge case where TRAP doesn't behave properly
+alias Type::TrapAssign='Type::CaptureParams; \
+                        declare -i __typeCreate_normalCodeStarted=0; \
+                        trap "declare -i __typeCreate_paramNo; \
+                              Type::TrapAndCreate \"\$BASH_COMMAND\" \"\$@\"; \
+                              [[ \$__typeCreate_normalCodeStarted -ge 2 ]] \
+                                && trap - DEBUG \
+                                && unset __typeCreate_varType __typeCreate_varName __typeCreate_varValue __typeCreate_paramNo" DEBUG; \
+                        true; true; '
 ```
+
+=== comments ===
+
+`DEBUG`にトラップされたコマンドは、コマンドが実施されるたびに実行される
+
+> DEBUGをトラップしていた場合、`arg`は全てのコマンド、`for`コマンド、`case`コマンド、`select`コマンド、全ての計算コマンド、
+> そして関数の中ではじめに実行されるコマンドの前(つまり関数の冒頭?)で実行されます。
+> 詳しくは、`shopt`コマンドの`extdebug`オプションの説明を参照してください
+>
+> > If a sigspec is DEBUG, the command arg is executed
+> > before every simple command, for command, case command, select command, every arithmetic for command, and before the first  com-
+> > mand  executes  in  a  shell  function  (see SHELL GRAMMAR above).  Refer to the description of the extdebug option to the shopt
+> > builtin for details of its effect on the DEBUG trap.
+> >
+> > man bash
 
 
 == reference ==
